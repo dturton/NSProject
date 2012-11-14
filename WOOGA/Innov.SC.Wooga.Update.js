@@ -29,8 +29,8 @@ WOOGA.afterSubmit = function(type){
 		var empId = nlapiGetRecordId();
 
 		esop(empObj, empId);
-		
-		//mirror(empObj);
+
+		mirror(empObj);
 		//getIllnessDataYear(empObj, empId);
 		//getIllnessDataMonth(empObj, empId);
 		//getIllnessDataLastYear(empObj, empId);
@@ -396,6 +396,7 @@ var mirror = function(obj){
 	var JobTitleRecord = 'recmachcustrecord_jobtitle_employee_link';
 	var CostCenterRecord = 'recmachcustrecord_cc_employee_link';
 	var SupervisorRecord = 'recmachcustrecord_supervisor_employee_link';
+	var ContractEmployee = 'recmachcustrecord_contract_employee_link';
 
 	var count = obj.getLineItemCount(JobTitleRecord);
 	if(count == 1)
@@ -429,11 +430,23 @@ var mirror = function(obj){
 		obj.setFieldValue('custentity_emp_supervisor_from_mirror', supervisorFrom);
 	}
 
-	var employeeType1 = obj.getFieldValue('custentity_emp_empl_type1_mirror_subtab');
-	var employeeType2 = obj.getFieldValue('custentity_emp_empl_type2_mirror_subtab');
-
-	obj.setFieldValue('custentity_emp_employment_type_1_mirror', employeeType1);
-	obj.setFieldValue('custentity_emp_employment_type_2_mirror', employeeType2);
+	var etCount = obj.getLineItemCount(ContractEmployee);
+	if(etCount > 0)
+	{
+		for(var et = 1; et <= count; et++)
+		{
+			var temp = obj.getLineItemValue(ContractEmployee, 'custrecord_contract_empl_details_to', et);
+			if(temp == "")
+			{
+				obj.getLineItemValue(ContractEmployee, 'custrecord_contract_employment_type1', et);
+				obj.getLineItemValue(ContractEmployee, 'custrecord_contract_employment_type2', et);
+				obj.setFieldValue('custentity_emp_empl_type1_mirror_subtab', employeeType1);
+				obj.setFieldValue('custentity_emp_empl_type2_mirror_subtab', employeeType2);
+				obj.setFieldValue('custentity_emp_employment_type_1_mirror', employeeType1);
+				obj.setFieldValue('custentity_emp_employment_type_2_mirror', employeeType2);
+			}
+		}
+	}
 
 }
 
@@ -453,21 +466,21 @@ var updateAll = function(){
 			{
 				var objContext = nlapiGetContext();
 				var intUsageRemaining = objContext.getRemainingUsage();
-				
+
 				var empObj = nlapiLoadRecord('employee', internalid);
-		
+
 				mirror(empObj);
-		
+
 				var idLog = nlapiSubmitRecord(empObj, true);
 				log.write('Updated Employee: ' + idLog);
-				
+
 				if (intUsageRemaining <= 1000)
 				{
 					log.write('BREAK! Remaining Usage: ' + intUsageRemaining);
 					nlapiScheduleScript('customscript_innov_sched_update_employee', null, null);
 					break;
 					return 0;
-				}				
+				}
 			}
 			catch(ex)
 			{
@@ -515,7 +528,7 @@ var esop = function(obj, empId){
 			quantityOptions += sum1;
 			lapsedOptions += sum2;
 			esopBalance += sum3;
-			
+
 			log.write('Quantity Options: ' + quantityOptions + ' | Lapsed Options (Exit):'  + lapsedOptions + ' | Balance: ' + esopBalance);
 		}
 
