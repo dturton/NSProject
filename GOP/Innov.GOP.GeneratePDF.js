@@ -102,7 +102,7 @@ var afterSubmit = function(type){
 
             var xml_vend = "";
             xml_vend += generatePDF(obj, 'vendor');
-            nlapiLogExecution('DEBUG','Generating vendor XML' );
+            nlapiLogExecution('DEBUG', 'Generating vendor XML');
 
             var fileVend = nlapiXMLToPDF(xml_vend);
             nlapiLogExecution('DEBUG','Generating vendor PDF' );
@@ -145,10 +145,9 @@ var afterSubmit = function(type){
 }
 
 var generatePDF = function(obj, entity){
-    var xml = "";
     var LOGO = "https://system.netsuite.com/core/media/media.nl?id=451&c=3426165&h=3276696831364a77f125";
     var xml = "";
-    xml += "<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE pdf PUBLIC '-//big.faceless.org//report' 'report-1.1.dtd'>";
+    xml += "<?xml version='1.0' encoding='UTF-8'?><!DOCTYPE pdf PUBLIC '-//big.faceless.org//report'  'report-1.1.dtd'>";
     xml += "<pdf>";
     xml += "<head>";
     xml += "<style type=\"text/css\">";
@@ -456,7 +455,7 @@ var materials = function(obj){
     }
 
     xml += "	</table>";
-
+    
     return xml;
 }
 
@@ -468,6 +467,7 @@ function getImage(img, width, height)
 {
     var str = "";
     str += "<img src='" + nlapiEscapeXML(img) + "' style='width:" + width + "px; height:" + height + "px;' />";
+    nlapiLogExecution('DEBUG', 'Image: ' + img);
     return str;
 
 }
@@ -620,8 +620,12 @@ var cartonLabelInformation = function(obj, entity){
 }
 
 var photos = function(obj){
-
+	
     var xml = "";
+    
+    var isImg1 = false;
+    var isImg2 = false;
+    var isImg3 = false;
 
     var photo_one = obj.getFieldValue('custrecord_photo_one');
     var photo_two = obj.getFieldValue('custrecord_photo_two');
@@ -633,7 +637,7 @@ var photos = function(obj){
         var url1 = "https://system.netsuite.com" + f1.getURL();
         if(!isBlank(url1))
         {
-            var isImg1 = validateImage(f1.getName());
+            isImg1 = validateImage(f1.getName());
         }
     }
 
@@ -643,7 +647,7 @@ var photos = function(obj){
         var url2 = "https://system.netsuite.com" + f2.getURL();
         if(!isBlank(url2))
         {
-            var isImg2 = validateImage(f2.getName());
+            isImg2 = validateImage(f2.getName());
         }
     }
 
@@ -653,7 +657,7 @@ var photos = function(obj){
         var url3 = "https://system.netsuite.com" + f3.getURL();
         if(!isBlank(url3))
         {
-            var isImg3 = validateImage(f3.getName());
+            isImg3 = validateImage(f3.getName());
         }
     }
 
@@ -665,19 +669,19 @@ var photos = function(obj){
     xml += "		<td style='width:100px; padding-right: 10px;' align='center'>";
     if(isImg1)
     {
-        xml += 				getImage(url1, '80', '80');
+        xml += getImage(url1, '80', '80');
     }
     xml += "		</td>";
     xml += "		<td style='width:100px;' align='center'>";
     if(isImg2)
     {
-        xml += 				getImage(url2, '80', '80');
+        xml += getImage(url2, '80', '80');
     }
     xml += "		</td>";
     xml += "		<td style='width:100px;' align='center'>";
     if(isImg3)
     {
-        xml += 				getImage(url3, '80', '80');
+        xml += getImage(url3, '80', '80');
     }
     xml += "		</td>";
     xml += "	</tr>";
@@ -699,22 +703,28 @@ var photos = function(obj){
 var productDesignDocument = function(obj){
     var xml = "";
     var doc = obj.getFieldValue('custrecord_product_design_doc');
-    var f = nlapiLoadFile(doc);
-    var url = "https://system.netsuite.com" + f.getURL();
-    if(!isBlank(url))
+    if(!isBlank(doc))
     {
-        var isImage = validateImage(f.getName());
-        if(isImage)
-        {
-            nlapiLogExecution('DEBUG', 'Image file Valid, putting on form');
-
-            xml += "<table style='width:300px; border-left-color:#000; border-left-width:thin; border-right-color:#000; border-right-width:thin; border-top-color:#000; border-top-width:thin; border-bottom-color:#000; border-bottom-width:thin;'>";
-            xml += "	<tr>";
-            xml += "		<td align='center'><img src='" + nlapiEscapeXML(url) + "' style='width:200px; height:200px;' /></td>";
-            xml += "	</tr>";
-            xml += "</table>";
-        }
-    }
+	    var f = nlapiLoadFile(doc);
+	    var url = "https://system.netsuite.com" + f.getURL();
+	    
+	    if(!isBlank(url))
+	    {
+	        var isImage = validateImage(f.getName());
+	        
+	        if(isImage)
+	        {
+	            nlapiLogExecution('DEBUG', 'Image file Valid, putting on form');
+	
+	            xml += "<table style='width:300px; border-left-color:#000; border-left-width:thin; border-right-color:#000; border-right-width:thin; border-top-color:#000; border-top-width:thin; border-bottom-color:#000; border-bottom-width:thin;'>";
+	            xml += "<table>";
+	            xml += "	<tr>";
+	            xml += "		<td align='center'><img src='" + nlapiEscapeXML(url) + "' style='width:200px;height:200px;' /></td>";
+	            xml += "	</tr>";
+	            xml += "</table>";
+	        }
+	    }
+	  }
     return xml;
 }
 
