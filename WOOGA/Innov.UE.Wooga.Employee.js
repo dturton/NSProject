@@ -28,16 +28,15 @@ WOOGA.afterSubmit = function(type){
 		var empObj = nlapiLoadRecord(nlapiGetRecordType(), nlapiGetRecordId());
 		var empId = nlapiGetRecordId();
 
-		//mirror(empObj);
-		//getIllnessDataYear(empObj, empId);
-		//getIllnessDataMonth(empObj, empId);
-		//getIllnessDataLastYear(empObj, empId);
-		//getVacationDataMonth(empObj, empId);
-		//getVacationDataYear(empObj, empId);
+		getIllnessDataYear(empObj, empId);
+		getIllnessDataMonth(empObj, empId);
+		getIllnessDataLastYear(empObj, empId);
+		getVacationDataMonth(empObj, empId);
+		getVacationDataYear(empObj, empId);
 		
 		//Update ESOP
 		esop(empObj, empId);
-
+    
 		//Update Supervisor
 		updateSupervisor(empObj, empId);
 		
@@ -49,6 +48,14 @@ WOOGA.afterSubmit = function(type){
 		
 		//Update Contract Details
 		updateContractDetails(empObj, empId);
+		
+		//Bank Details
+		updateBankDetails(empObj, empId);
+		
+		//Update File
+		updateFiles(empObj, empId);
+		
+		fld(empObj, empId);
 
 		nlapiSubmitRecord(empObj, true);
 

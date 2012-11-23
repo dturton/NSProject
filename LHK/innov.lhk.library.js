@@ -44,6 +44,16 @@ var update = function(arr, conversionRate, obj, adjustment, transfer){
 		var recordType = arr[i].recordtype;
 		var recordId = arr[i].recordid;
 		var quantity = arr[i].quantity;
+		
+		
+		if(recordType == 'creditmemo')
+		{
+			var tbaseunitPurchased = parseInt(quantity) * parseInt(conversionRate);
+			var tbaseQty = parseInt(quantity);
+			
+			baseunitPurchased += parseInt(tbaseunitPurchased);
+			baseQty += parseInt(tbaseQty);			
+		}
 
 		if(recordType == 'purchaseorder')
 		{
@@ -284,9 +294,8 @@ var getRotationInventoryAdjItems = function(rotationId, itemId){
 		}
 	}
 
-	log.write('Qty to Adjust: ' + qtyToAdjust);
-
 	var temp = parseInt(qtyToAdjust) * parseInt(-1);
+	log.write('Qty to Adjust: ' + temp);
 	return temp;
 }
 
@@ -356,7 +365,7 @@ var updateRotationRecord = function(rotationId){
 	var arr = getItemLines(rotationId, itemId);
 	var adjustment = getRotationInventoryAdjItems(rotationId, itemId);
 	var transfer = getRotationInventoryTransferItems(rotationId, itemId);
-
+	
 	log.write('Adjustment qty: ' + adjustment + ' | Transfer qty: ' + transfer);
 
 	update(arr, conversionRate, obj, adjustment, transfer);

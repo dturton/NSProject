@@ -345,55 +345,16 @@ var loadRecord = function(){
 	return a;
 }
 
-//Scripted Mirror Field
+//Mirror Fields
+var fld = function(obj, empId){
+	var termContractEffective = obj.getFieldValue('custentity_emp_term_contract_effective');
+	var termLastWorkDay = obj.getFieldValue('custentity_emp_term_contract_lastworkday');
 
-
-var mirror = function(obj){
-
-	var JobTitleRecord = 'recmachcustrecord_jobtitle_employee_link';
-	var CostCenterRecord = 'recmachcustrecord_cc_employee_link';
-	var SupervisorRecord = 'recmachcustrecord_supervisor_employee_link';
-
-	var count = obj.getLineItemCount(JobTitleRecord);
-	if(count == 1)
-	{
-		var jobGroup = obj.getLineItemValue(JobTitleRecord, 'custrecord_jobtitle_job_group', 1);
-		var jobTitle = obj.getLineItemValue(JobTitleRecord, 'custrecord_jobtitle_job_title', 1);
-		var team = obj.getLineItemValue(JobTitleRecord, 'custrecord_jobtitle_team', 1);
-
-		obj.setFieldValue('custentity_emp_job_title_mirror', jobTitle);
-		obj.setFieldValue('custentity_emp_team_mirror', team);
-		obj.setFieldValue('custentity_emp_job_group_mirror', jobGroup);
-	}
-
-	var ccCount = obj.getLineItemCount(CostCenterRecord);
-	if(ccCount == 1)
-	{
-		var costCenterName = obj.getLineItemValue(CostCenterRecord, 'custrecord_cc_main_number_and_name', 1);
-		var costCenterValidFrom = obj.getLineItemValue(CostCenterRecord, 'custrecord_cc_main_valid_from', 1);
-
-		obj.setFieldValue('custentity_emp_main_cc_valid_from_mirror', costCenterValidFrom);
-		obj.setFieldValue('department', costCenterName);
-	}
-
-	var sCount = obj.getLineItemCount(SupervisorRecord);
-	if(ccCount == 1)
-	{
-		var supervisorName = obj.getLineItemValue(SupervisorRecord, 'custrecord_supervisor_name', 1);
-		var supervisorFrom = obj.getLineItemValue(SupervisorRecord, 'custrecord_supervisor_from', 1);
-
-		obj.setFieldValue('supervisor', supervisorName);
-		obj.setFieldValue('custentity_emp_supervisor_from_mirror', supervisorFrom);
-	}
-
-	var employeeType1 = obj.getFieldValue('custentity_emp_empl_type1_mirror_subtab');
-	var employeeType2 = obj.getFieldValue('custentity_emp_empl_type2_mirror_subtab');
-
-	obj.setFieldValue('custentity_emp_employment_type_1_mirror', employeeType1);
-	obj.setFieldValue('custentity_emp_employment_type_2_mirror', employeeType2);
-
+	obj.setFieldValue('custentity_term_contr_effective_mirror', termContractEffective);
+	obj.setFieldValue('custentity_term_contr_lastworkday_mirror', termLastWorkDay);
 }
 
+//Scripted Mirror Field
 var esop = function(obj, empId){
 
 	var filters =
@@ -415,18 +376,20 @@ var esop = function(obj, empId){
 			var sum2 = parseFloat(s[i].getValue('custrecord_esop_lapsed_options', null, 'sum')); //Lapsed Options (Exit)
 			var sum3 = parseFloat(s[i].getValue('custrecord_esop_balance', null, 'sum')); //Balance
 
-			if(isBlank(sum1))
+			if(isBlank(sum1) || isNaN(sum1))
 			{
 				sum1 = parseFloat(0.00);
 			}
-			if(isBlank(sum2))
+			if(isBlank(sum2) || isNaN(sum2))
 			{
 				sum2 = parseFloat(0.00);
 			}
-			if(isBlank(sum3))
+			if(isBlank(sum3) || isNaN(sum3))
 			{
 				sum3 = parseFloat(0.00);
 			}
+
+			//log.write('ESOP: ' + empId + ' | Quantity Options: ' + sum1 + ' | Lapsed Options (Exit): ' + sum2 + ' | Balance: ' + sum3);
 
 			quantityOptions += sum1;
 			lapsedOptions += sum2;
@@ -458,44 +421,60 @@ var updateSupervisor = function(obj, id){
 
 	if(s != null)
 	{
-		var supervisorArr = [];
-
-		for (var i = 0; i < s.length; i++)
+		if(s.length == 1)
 		{
-			var employeeLink = s[i].getValue('custrecord_supervisor_employee_link');
-			var supervisor = s[i].getValue('custrecord_supervisor_name');
-			var supervisorFrom = nlapiStringToDate(s[i].getValue('custrecord_supervisor_from'));
+			var employeeLink = s[0].getValue('custrecord_supervisor_employee_link');
+			var supervisor = s[0].getValue('custrecord_supervisor_name');
+			var supervisorFrom = s[0].getValue('custrecord_supervisor_from');
 
-			//Store supervisor data
+			//log.write('Supervisor: ' + employeeLink + ' | Supervisor: ' + supervisor + ' | Date from: ' + supervisorFrom);
+			obj.setFieldValue('supervisor', supervisor);
+			obj.setFieldValue('custentity_emp_supervisor_from_mirror', supervisorFrom);
+		}
+		else
+		{
+			var supervisorArr = [];
 
-			if(!isBlank(employeeLink))
+			for (var i = 0; i < s.length; i++)
 			{
-				try
+				var employeeLink = s[i].getValue('custrecord_supervisor_employee_link');
+				var supervisor = s[i].getValue('custrecord_supervisor_name');
+				var supervisorFrom = s[i].getValue('custrecord_supervisor_from');
+
+				//log.write('Supervisor: ' + supervisor + ' | Supervisor From: ' + supervisorFrom);
+
+				//Store supervisor data
+
+				if(!isBlank(employeeLink))
 				{
-					supervisorArr.push
-					(
+					try
+					{
+						if(!isBlank(supervisorFrom))
 						{
-							'supervisor' : supervisor,
-							'supervisorFrom' : supervisorFrom
+							supervisorArr.push
+							(
+								{
+									'supervisor' : supervisor,
+									'supervisorFrom' : nlapiStringToDate(supervisorFrom)
+								}
+							);
 						}
-					);
 
-				log.write('Supervisor: ' + supervisor + ' | Supervisor From: ' + supervisorFrom);
-
-				}
-				catch(ex)
-				{
-					log.error(ex);
+					}
+					catch(ex)
+					{
+						log.error(ex);
+					}
 				}
 			}
-		}
 
-		if(!isBlank(supervisorArr))
-		{
-			var d = supervisorArr.sort(sortByDate);
-			log.write('Supervisor: ' + d[d.length - 1].supervisor + ' | Supervisor From: ' + d[d.length - 1].supervisorFrom);
-			obj.setFieldValue('supervisor', d[d.length - 1].supervisor);
-			obj.setFieldValue('custentity_emp_supervisor_from_mirror', nlapiDateToString(d[d.length - 1].supervisorFrom));
+			if(!isBlank(supervisorArr))
+			{
+				var d = supervisorArr.sort(sortByDate);
+				//log.write('Supervisor: ' + d[d.length - 1].supervisor + ' | Supervisor From: ' + d[d.length - 1].supervisorFrom);
+				obj.setFieldValue('supervisor', d[d.length - 1].supervisor);
+				obj.setFieldValue('custentity_emp_supervisor_from_mirror', nlapiDateToString(d[d.length - 1].supervisorFrom));
+			}
 		}
 	}
 }
@@ -519,43 +498,65 @@ var updateJobTitleDetails = function(obj, id){
 
 	if(s != null)
 	{
-		var jobTitleArr = [];
-
-		for (var i = 0; i < s.length; i++)
+		if(s.length == 1)
 		{
-			var employeeLink = s[i].getValue('custrecord_jobtitle_employee_link');
-			var jobGroup = s[i].getValue('custrecord_jobtitle_job_group');
-			var jobTitle = s[i].getValue('custrecord_jobtitle_job_title');
-			var team = s[i].getValue('custrecord_jobtitle_team');
-			var jobFrom = s[i].getValue('custrecord_jobtitle_jobinfo_from');
+			var employeeLink = s[0].getValue('custrecord_jobtitle_employee_link');
+			var jobGroup = s[0].getValue('custrecord_jobtitle_job_group');
+			var jobTitle = s[0].getValue('custrecord_jobtitle_job_title');
+			var jobFrom = s[0].getValue('custrecord_jobtitle_jobinfo_from');
+			var jobKey = s[0].getValue('custrecord_jobtitle_conducted_work');
 
-			if(!isBlank(employeeLink))
+			//log.write('Job Title: ' + jobTitle + ' | Job Group: ' + jobGroup + ' | Team: ' + team + ' | Job From: ' + jobFrom);
+
+			obj.setFieldValue('custentity_emp_job_title_mirror', jobTitle);
+			obj.setFieldValue('custentity_emp_job_group_mirror', jobGroup);
+			obj.setFieldValue('custentity_emp_conducted_work_mirror', jobKey);
+		}
+		else
+		{
+			var jobTitleArr = [];
+
+			for (var i = 0; i < s.length; i++)
 			{
-				try
+				var employeeLink = s[i].getValue('custrecord_jobtitle_employee_link');
+				var jobGroup = s[i].getValue('custrecord_jobtitle_job_group');
+				var jobTitle = s[i].getValue('custrecord_jobtitle_job_title');
+				var jobFrom = s[i].getValue('custrecord_jobtitle_jobinfo_from');
+				var jobKey = s[i].getValue('custrecord_jobtitle_conducted_work');
+
+				//log.write('Job Title: ' + jobTitle + ' | Job Group: ' + jobGroup + ' | Team: ' + team + ' | Job From: ' + jobFrom);
+
+				if(!isBlank(employeeLink))
 				{
-					jobTitleArr.push
-					(
+					try
+					{
+						if(!isBlank(jobFrom))
 						{
-							'jobGroup' : jobGroup,
-							'jobTitle' : jobTitle,
-							'team' : team,
-							'jobFrom' : nlapiStringToDate(jobFrom)
+							jobTitleArr.push
+							(
+								{
+									'jobGroup' : jobGroup,
+									'jobTitle' : jobTitle,
+									'jobKey' : jobKey,
+									'jobFrom' : nlapiStringToDate(jobFrom)
+								}
+							)
 						}
-					)
-				}
-				catch(ex)
-				{
-					log.error(ex);
+					}
+					catch(ex)
+					{
+						log.error(ex);
+					}
 				}
 			}
-		}
 
-		if(!isBlank(jobTitleArr))
-		{
-			var d = jobTitleArr.sort(sortByDateJobTitle);
-			obj.setFieldValue('custentity_emp_job_title_mirror', d[d.length - 1].jobTitle);
-			obj.setFieldValue('custentity_emp_team_mirror', d[d.length - 1].team);
-			obj.setFieldValue('custentity_emp_job_group_mirror', d[d.length - 1].jobGroup);
+			if(!isBlank(jobTitleArr))
+			{
+				var d = jobTitleArr.sort(sortByDateJobTitle);
+				obj.setFieldValue('custentity_emp_job_title_mirror', d[d.length - 1].jobTitle);
+				obj.setFieldValue('custentity_emp_job_group_mirror', d[d.length - 1].jobGroup);
+				obj.setFieldValue('custentity_emp_conducted_work_mirror', d[d.length - 1].jobKey);
+			}
 		}
 	}
 }
@@ -583,26 +584,74 @@ var updateCostCenter = function(obj, id){
 		if(s.length == 1)
 		{
 			var employeeLink = s[0].getValue('custrecord_cc_employee_link');
-			var costCenter = s[0].getValue('custrecord_cc_main_number_and_name');
-			var costCenterValidFrom = s[0].getValue('custrecord_cc_main_valid_from'); //date
+			var costCenter = s[0].getValue('custrecord_cc_main_hierarchy');
+			var costCenterValidFrom = s[0].getValue('custrecord_cc_info_valid_from'); //date
+			var costCenterValidTo = s[0].getValue('custrecord_cc_info_valid_to'); //date
 			var department = s[0].getValue('department');
 			var team = s[0].getValue('custrecord_cc_team');
-			
-			log.write('Cost Center: ' + employeeLink + ' | CC: ' + costCenter + ' | CC Valid: ' + costCenterValidFrom + ' | Team: ' + team);
+
+			//Main
+			var mainCC = s[0].getValue('custrecord_cc_main_hierarchy');
+			var mainCCName = s[0].getValue('custrecord_cc_main_name');
+			var mainCCNumber = s[0].getValue('custrecord_cc_main_number');
+			var mainCCPercentage = s[0].getValue('custrecord_cc_main_percentage');
+
+			//cc2
+			var CC2 = s[0].getValue('custrecord_cc_cc2_hierarchy');
+			var CC2Name = s[0].getValue('custrecord_cc_cc2_name');
+			var CC2No = s[0].getValue('custrecord_cc_cc2_no');
+			var CC2Percentage = s[0].getValue('custrecord_cc_cc2_percentage');
+
+			//cc3
+			var CC3 = s[0].getValue('custrecord_cc_cc3_hierarchy');
+			var CC3Name = s[0].getValue('custrecord_cc_cc3_name');
+			var CC3No = s[0].getValue('custrecord_cc_cc3_no');
+			var CC3Percentage = s[0].getValue('custrecord_cc_cc3_percentage');
+
+			//cc4
+			var CC4 = s[0].getValue('custrecord_cc_cc4_hierarchy');
+			var CC4Name = s[0].getValue('custrecord_cc_cc4_name');
+			var CC4No = s[0].getValue('custrecord_cc_cc4_no');
+			var CC4Percentage = s[0].getValue('custrecord_cc_cc4_percentage');
+
+			//log.write('Cost Center: ' + costCenter + ' | CC Valid: ' + costCenterValidFrom + ' | Team: ' + team);
 
 			if(!isBlank(costCenter))
 			{
 				obj.setFieldValue('department', costCenter);
 				var employeeLocation = nlapiLookupField('department', costCenter, 'custrecord_cc_emp_office_location_master');
-				log.write('Employee location: ' + employeeLocation);
+				//log.write('Cost Center - Employee location: ' + employeeLocation);
 				if(!isBlank(employeeLocation))
 				{
 					obj.setFieldValue('custentity_emp_emp_office_location', employeeLocation); //Employee Location
 				}
 			}
 
-			obj.setFieldValue('custentity_emp_main_cc_valid_from_mirror', costCenterValidFrom);
-			obj.setFieldValue('custentity_emp_team_mirror', team);
+			obj.setFieldValue('custentity_emp_main_cc_from_mirror_mhead', costCenterValidFrom); //Main Cost Center - Valid From - Mirror
+			obj.setFieldValue('custentity_emp_team_mirror', team); //Team Mirror
+			obj.setFieldValue('custentity_emp_cc_cc_info_from_mirror', costCenterValidFrom); //CC Info - Valid From - Mirror
+
+			//CC1
+			obj.setFieldValue('custentity_emp_cc_main_cc_no_mirror', mainCCNumber); //Main CC - No. - Mirror
+			obj.setFieldValue('custentity_emp_cc_main_cc_name_mirror', mainCCName); //Main CC - Name - Mirror
+			obj.setFieldValue('custentity_emp_cc_main_cc_perc_mirror', mainCCPercentage); //Main CC - % - Mirror
+
+			//CC2
+			obj.setFieldValue('custentity_emp_cc_cc2_no_mirror', CC2No); //CC 2 - No. - Mirror
+			obj.setFieldValue('custentity_emp_cc_cc2_name_mirror', CC2Name); //CC 2 - Name - Mirror
+			obj.setFieldValue('custentity_emp_cc_cc2_perc_mirror', CC2Percentage); //CC 2 - % - Mirror
+
+			//CC3
+			obj.setFieldValue('custentity_emp_cc_cc3_no_mirror', CC3No); //CC 3 - No. - Mirror
+			obj.setFieldValue('custentity_emp_cc_cc3_name_mirror', CC3Name); //CC 3 - Name - Mirror
+			obj.setFieldValue('custentity_emp_cc_cc3_perc_mirror', CC3Percentage); //CC 4 - % - Mirror
+
+			//CC4
+			obj.setFieldValue('custentity_emp_cc_cc4_no_mirror', CC4No); //CC 4 - No. - Mirror
+			obj.setFieldValue('custentity_emp_cc_cc4_name_mirror', CC4Name); //CC 3 - Name - Mirror
+			obj.setFieldValue('custentity_emp_cc_cc4_perc_mirror', CC4Percentage); //CC 4 - % - Mirror
+
+
 		}
 		else
 		{
@@ -611,25 +660,71 @@ var updateCostCenter = function(obj, id){
 			for (var i = 0; i < s.length; i++)
 			{
 				var employeeLink = s[i].getValue('custrecord_cc_employee_link');
-				var costCenter = s[i].getValue('custrecord_cc_main_number_and_name');
-				var costCenterValidFrom = s[i].getValue('custrecord_cc_main_valid_from'); //date
+				var costCenter = s[i].getValue('custrecord_cc_main_hierarchy');
+				var costCenterValidFrom = s[i].getValue('custrecord_cc_info_valid_from'); //date
+				var costCenterValidTo = s[i].getValue('custrecord_cc_info_valid_to'); //date
 				var department = s[i].getValue('department');
 				var team = s[i].getValue('custrecord_cc_team');
+
+				//Main
+				var mainCC = s[i].getValue('custrecord_cc_main_hierarchy');
+				var mainCCName = s[i].getValue('custrecord_cc_main_name');
+				var mainCCNumber = s[i].getValue('custrecord_cc_main_number');
+				var mainCCPercentage = s[i].getValue('custrecord_cc_main_percentage');
+
+				//cc2
+				var CC2 = s[i].getValue('custrecord_cc_cc2_hierarchy');
+				var CC2Name = s[i].getValue('custrecord_cc_cc2_name');
+				var CC2No = s[i].getValue('custrecord_cc_cc2_no');
+				var CC2Percentage = s[i].getValue('custrecord_cc_cc2_percentage');
+
+				//cc3
+				var CC3 = s[i].getValue('custrecord_cc_cc3_hierarchy');
+				var CC3Name = s[i].getValue('custrecord_cc_cc3_name');
+				var CC3No = s[i].getValue('custrecord_cc_cc3_no');
+				var CC3Percentage = s[i].getValue('custrecord_cc_cc3_percentage');
+
+				//cc4
+				var CC4 = s[i].getValue('custrecord_cc_cc4_hierarchy');
+				var CC4Name = s[i].getValue('custrecord_cc_cc4_name');
+				var CC4No = s[i].getValue('custrecord_cc_cc4_no');
+				var CC4Percentage = s[i].getValue('custrecord_cc_cc4_percentage');
+
+				//log.write('Cost Center: ' + costCenter + ' | CC Valid: ' + costCenterValidFrom + ' | Team: ' + team);
 
 				if(!isBlank(employeeLink))
 				{
 					try
 					{
-						costCenterArr.push
-						(
-							{
-								'employeeLink' : employeeLink,
-								'costCenter' : costCenter,
-								'costCenterValidFrom' : nlapiStringToDate(costCenterValidFrom),
-								'department' : department,
-								'team' : team
-							}
-						)
+						if(!isBlank(costCenterValidFrom))
+						{
+							costCenterArr.push
+							(
+								{
+									'employeeLink' : employeeLink,
+									'costCenter' : costCenter,
+									'costCenterValidFrom' : nlapiStringToDate(costCenterValidFrom),
+									'department' : department,
+									'team' : team,
+									'mainCC' : mainCC,
+									'mainCCName' : mainCCName,
+									'mainCCNumber' : mainCCNumber,
+									'mainCCPercentage' : mainCCPercentage,
+									'CC2' : CC2,
+									'CC2Name' : CC2Name,
+									'CC2No' : CC2No,
+									'CC2Percentage' : CC2Percentage,
+									'CC3' : CC3,
+									'CC3Name' : CC3Name,
+									'CC3No' : CC3No,
+									'CC3Percentage' : CC3Percentage,
+									'CC4' : CC4,
+									'CC4Name' : CC4Name,
+									'CC4No' : CC4No,
+									'CC4Percentage' : CC4Percentage
+								}
+							)
+						}
 					}
 					catch(ex)
 					{
@@ -641,7 +736,7 @@ var updateCostCenter = function(obj, id){
 			if(!isBlank(costCenterArr))
 			{
 				var d = costCenterArr.sort(sortByDateCostCenter);
-				
+
 				if(!isBlank(d[d.length - 1].costCenter))
 				{
 					obj.setFieldValue('department', d[d.length - 1].costCenter);
@@ -650,10 +745,32 @@ var updateCostCenter = function(obj, id){
 					{
 						obj.setFieldValue('custentity_emp_emp_office_location', employeeLocation);
 					}
-				}				
-				
-				obj.setFieldValue('custentity_emp_main_cc_valid_from_mirror', nlapiDateToString(d[d.length - 1].costCenterValidFrom));
+				}
+
+				obj.setFieldValue('custentity_emp_main_cc_from_mirror_mhead', nlapiDateToString(d[d.length - 1].costCenterValidFrom));
 				obj.setFieldValue('custentity_emp_team_mirror', d[d.length - 1].team);
+				obj.setFieldValue('custentity_emp_cc_cc_info_from_mirror', nlapiDateToString(d[d.length - 1].costCenterValidFrom));
+
+				//CC1
+				obj.setFieldValue('custentity_emp_cc_main_cc_no_mirror', d[d.length - 1].mainCCNumber);
+				obj.setFieldValue('custentity_emp_cc_main_cc_name_mirror', d[d.length - 1].mainCCName);
+				obj.setFieldValue('custentity_emp_cc_main_cc_perc_mirror', d[d.length - 1].mainCCPercentage);
+
+				//CC2
+				obj.setFieldValue('custentity_emp_cc_cc2_no_mirror', d[d.length - 1].CC2No);
+				obj.setFieldValue('custentity_emp_cc_cc2_name_mirror', d[d.length - 1].CC2Name);
+				obj.setFieldValue('custentity_emp_cc_cc2_perc_mirror', d[d.length - 1].CC2Percentage);
+
+				//CC3
+				obj.setFieldValue('custentity_emp_cc_cc3_no_mirror', d[d.length - 1].CC3No);
+				obj.setFieldValue('custentity_emp_cc_cc3_name_mirror', d[d.length - 1].CC3Name);
+				obj.setFieldValue('custentity_emp_cc_cc3_perc_mirror', d[d.length - 1].CC3Percentage);
+
+				//CC4
+				obj.setFieldValue('custentity_emp_cc_cc4_no_mirror', d[d.length - 1].CC4No);
+				obj.setFieldValue('custentity_emp_cc_cc4_name_mirror', d[d.length - 1].CC4Name);
+				obj.setFieldValue('custentity_emp_cc_cc4_perc_mirror', d[d.length - 1].CC4Percentage);
+
 			}
 		}
 	}
@@ -678,8 +795,6 @@ var updateContractDetails = function(obj, id){
 
 	if(s != null)
 	{
-		var contractDetails = [];
-
 		if(s.length == 1)
 		{
 			var employeeLink = s[0].getValue('custrecord_contract_employee_link');
@@ -693,6 +808,12 @@ var updateContractDetails = function(obj, id){
 			var workhrsweek = s[0].getValue('custrecord_contract_work_hours_week'); //Working Hours/Week
 			var comments = s[0].getValue('custrecord_contract_comments'); //Comments
 			var validFrom = s[0].getValue('custrecord_contract_empl_details_from');
+			var paymentRate = s[0].getValue('custrecord_contract_payment_rate'); //Payment Rate
+			var daysweek = s[0].getValue('custrecord_contract_work_days_week'); //Working Hours/Week
+
+			//log.write('Contract Details: ' + employeeLink + ' | Emp Type1: ' + employmentType1 + ' | Emp Type2: ' + employmentType2 + ' | salaryType: ' + salaryType);
+			//log.write('Contract Details: ' + employeeLink + ' | Base Salary: ' + baseSalary + ' | Salary Amount: ' + salaryAmount + ' | Curr: ' + curr);
+			//log.write('Contract Details: ' + employeeLink + ' | FTE: ' + fte + ' | work hrs week: ' + workhrsweek + ' | Valid from: ' + validFrom);
 
 			obj.setFieldValue('custentity_emp_employment_type_1_mirror', employmentType1);
 			obj.setFieldValue('custentity_emp_employment_type_2_mirror', employmentType2);
@@ -705,9 +826,14 @@ var updateContractDetails = function(obj, id){
 			obj.setFieldValue('custentity_emp_working_hours_week_mirror', workhrsweek); //Working Hours/Week - Mirror
 			obj.setFieldValue('custentity_emp_fte_mirror', fte); //FTE - Mirror
 			obj.setFieldValue('custentity_emp_contract_comments_mirror', comments); //Contract Details - Comments - Mirror
+			obj.setFieldValue('custentity_emp_payment_rate_mirror', paymentRate); //Payment Rate
+			obj.setFieldValue('custentity_emp_days_per_week_mirror', daysweek); //Days/Week
+			obj.setFieldValue('custentity_emp_salary_valid_from_mirror', validFrom); //Salary - Valid From
 		}
 		else
 		{
+			var contractDetails = [];
+
 			for (var i = 0; i < s.length; i++)
 			{
 				var employeeLink = s[i].getValue('custrecord_contract_employee_link');
@@ -720,29 +846,39 @@ var updateContractDetails = function(obj, id){
 				var fte = s[i].getValue('custrecord_contract_fte'); //FTE
 				var workhrsweek = s[i].getValue('custrecord_contract_work_hours_week'); //Working Hours/Week
 				var comments = s[i].getValue('custrecord_contract_comments'); //Comments
-				var validFrom = nlapiStringToDate(s[i].getValue('custrecord_contract_empl_details_from'));
+				var validFrom = s[i].getValue('custrecord_contract_empl_details_from');
+				var paymentRate = s[i].getValue('custrecord_contract_payment_rate'); //Payment Rate
+				var daysweek = s[i].getValue('custrecord_contract_work_days_week'); //Working Hours/Week
 
+				//log.write('Contract Details: ' + employeeLink + ' | Emp Type1: ' + employmentType1 + ' | Emp Type2: ' + employmentType2 + ' | salaryType: ' + salaryType);
+				//log.write('Contract Details: ' + employeeLink + ' | Base Salary: ' + baseSalary + ' | Salary Amount: ' + salaryAmount + ' | Curr: ' + curr);
+				//log.write('Contract Details: ' + employeeLink + ' | FTE: ' + fte + ' | work hrs week: ' + workhrsweek + ' | Valid from: ' + validFrom);
 
 				if(!isBlank(employeeLink))
 				{
 					try
 					{
-						contractDetails.push
-						(
-							{
-								'employeeLink' : employeeLink,
-								'employmentType1' : employmentType1,
-								'employmentType2' : employmentType2,
-								'salaryType' : salaryType,
-								'baseSalary' : baseSalary,
-								'salaryAmount' : salaryAmount,
-								'curr' : curr,
-								'fte' : fte,
-								'workhrsweek' : workhrsweek,
-								'comments' : comments,
-								'validFrom' : nlapiStringToDate(validFrom)
-							}
-						);
+						if(!isBlank(validFrom))
+						{
+							contractDetails.push
+							(
+								{
+									'employeeLink' : employeeLink,
+									'employmentType1' : employmentType1,
+									'employmentType2' : employmentType2,
+									'salaryType' : salaryType,
+									'baseSalary' : baseSalary,
+									'salaryAmount' : salaryAmount,
+									'curr' : curr,
+									'fte' : fte,
+									'workhrsweek' : workhrsweek,
+									'comments' : comments,
+									'validFrom' : nlapiStringToDate(validFrom),
+									'paymentRate' : paymentRate,
+									'daysweek' : daysweek
+								}
+							);
+						}
 					}
 					catch(ex)
 					{
@@ -765,13 +901,146 @@ var updateContractDetails = function(obj, id){
 				obj.setFieldValue('custentity_emp_working_hours_week_mirror', d[d.length - 1].workhrsweek); //Working Hours/Week - Mirror
 				obj.setFieldValue('custentity_emp_fte_mirror', d[d.length - 1].fte); //FTE - Mirror
 				obj.setFieldValue('custentity_emp_contract_comments_mirror', d[d.length - 1].comments); //Contract Details - Comments - Mirror
+				obj.setFieldValue('custentity_emp_payment_rate_mirror', d[d.length - 1].paymentRate); //Payment Rate
+				obj.setFieldValue('custentity_emp_days_per_week_mirror', d[d.length - 1].daysweek); //Days/Week
+				obj.setFieldValue('custentity_emp_salary_valid_from_mirror', nlapiDateToString(d[d.length - 1].validFrom));  //Salary - Valid From
+
+			}
+		}
+	}
+}
+
+
+var updateFiles = function(empObj, empId){
+	var filters =
+	[
+		new nlobjSearchFilter('custrecord_files_employee_link', null, 'is', empId)
+	];
+
+	try
+	{
+		var s = nlapiSearchRecord('customrecord_files', 'customsearch_innov_update_files', filters, null);
+
+		if(s != null)
+		{
+			for (var i = 0; i < s.length; i++)
+			{
+				var filesId = s[i].getId();
+				var fileId = s[i].getValue('custrecord_files_attached_files');
+				file(fileId, empId, filesId);
+			}
+		}
+	}
+	catch(ex)
+	{
+		log.error(ex);
+	}
+}
+
+/**
+ * @name updateContractDetails
+ * @author Eli eli@innov.co.uk
+ * 11-12-2012
+ * @description: Update 4 mirror fields in the employee record
+ * Call a saved search with criteria 'Valid To' is blank.
+ * Get the Employee Type 1 and Employee Type 2 result and load/update the employee records.
+ */
+var updateBankDetails = function(obj, id){
+
+	var filters =
+	[
+		new nlobjSearchFilter('custrecord_bankdet_employee_link', null, 'is', id)
+	];
+
+	var s = nlapiSearchRecord('customrecord_bank_details', 'customsearch_innov_bank_details', filters);
+
+	if(s != null)
+	{
+		if(s.length == 1)
+		{
+			var employeeLink = s[0].getValue('custrecord_bankdet_employee_link');
+			var isActive = s[0].getValue('custrecord_bankdet_active'); //Active
+			var accountNumber = s[0].getValue('custrecord_bankdet_account_number'); //Account Number
+			var bankCode = s[0].getValue('custrecord_bankdet_bank_code'); //Bank Code
+			var bankName = s[0].getValue('custrecord_bankdet_bank_name'); //Bank Name
+			var iban = s[0].getValue('custrecord_bankdet_iban'); //IBAN
+			var swift = s[0].getValue('custrecord_bankdet_swift'); //Swift
+			var validFrom = s[0].getValue('custrecord_bankdet_valid_from'); //Valid From
+			var validTo = s[0].getValue('custrecord_bankdet_valid_to'); //Valid To
+
+			if(isActive == 'T')
+			{
+				obj.setFieldValue('custentity_emp_bank_account_no_mirror', accountNumber);
+				obj.setFieldValue('custentity_emp_bank_code_mirror', bankCode);
+				obj.setFieldValue('custentity_emp_bank_name_mirror', bankName);
+				obj.setFieldValue('custentity_emp_bank_iban_mirror', iban);
+				obj.setFieldValue('custentity_emp_bank_swift_mirror', swift);
+			}
+		}
+		else
+		{
+			var bankDetails = [];
+
+			for (var i = 0; i < s.length; i++)
+			{
+				var employeeLink = s[i].getValue('custrecord_bankdet_employee_link');
+				var isActive = s[i].getValue('custrecord_bankdet_active'); //Active
+				var accountNumber = s[i].getValue('custrecord_bankdet_account_number'); //Account Number
+				var bankCode = s[i].getValue('custrecord_bankdet_bank_code'); //Bank Code
+				var bankName = s[i].getValue('custrecord_bankdet_bank_name'); //Bank Name
+				var iban = s[i].getValue('custrecord_bankdet_iban'); //IBAN
+				var swift = s[i].getValue('custrecord_bankdet_swift'); //Swift
+				var validFrom = s[i].getValue('custrecord_bankdet_valid_from'); //Valid From
+				var validTo = s[i].getValue('custrecord_bankdet_valid_to'); //Valid To
+
+				if(!isBlank(employeeLink))
+				{
+					try
+					{
+						if(!isBlank(validFrom))
+						{
+							bankDetails.push
+							(
+								{
+									'employeeLink' : employeeLink,
+									'isActive' : isActive,
+									'accountNumber' : accountNumber,
+									'bankCode' : bankCode,
+									'bankName' : bankName,
+									'iban' : iban,
+									'swift' : swift,
+									'validFrom' : validFrom,
+									'validTo' : validTo
+								}
+							);
+						}
+					}
+					catch(ex)
+					{
+						log.error(ex);
+					}
+				}
+			}
+
+			if(!isBlank(bankDetails))
+			{
+				var d = bankDetails.sort(sortByDateBankDetails);
+
+				if(d[d.length - 1].isActive == 'T')
+				{
+					obj.setFieldValue('custentity_emp_bank_account_no_mirror', d[d.length - 1].accountNumber);
+					obj.setFieldValue('custentity_emp_bank_code_mirror', d[d.length - 1].bankCode);
+					obj.setFieldValue('custentity_emp_bank_name_mirror', d[d.length - 1].bankName);
+					obj.setFieldValue('custentity_emp_bank_iban_mirror', d[d.length - 1].iban);
+					obj.setFieldValue('custentity_emp_bank_swift_mirror', d[d.length - 1].swift);
+				}
 			}
 		}
 	}
 }
 
 function sortByDate(a, b){
-    return a['supervisorFrom'].getTime() - b['supervisorFrom'].getTime();
+	return a['supervisorFrom'].getTime() - b['supervisorFrom'].getTime();
 }
 
 function sortByDateJobTitle(a, b){
@@ -784,4 +1053,41 @@ function sortByDateCostCenter(a, b){
 
 function sortByDateContractDetails(a, b){
     return a['validFrom'].getTime() - b['validFrom'].getTime();
+}
+
+function sortByDateBankDetails(a, b){
+    return a['validFrom'].getTime() - b['validFrom'].getTime();
+}
+
+var file = function(fileId, empId, filesId){
+
+	var obj = nlapiLoadFile(fileId);
+	var desc = obj.getDescription();
+	var folder = obj.getFolder();
+	var _id = obj.getId();
+	var _name = obj.getName();
+	var size = obj.getSize();
+	var _type = obj.getType();
+	var url = obj.getURL();
+	var val = obj.getValue();
+	var isinactive = obj.isInactive();
+	var isonline = obj.isOnline();
+
+	var folderObj = nlapiLoadRecord('folder', folder);
+
+	if(!isBlank(folderObj))
+	{
+		var folderName = folderObj.getFieldValue('name');
+		log.write('Folder Name: ' + folderName);
+	}
+
+	log.write('File ID: ' + filesId +  ' | Name: ' + _name + ' | Size: ' +  size + ' | Type: ' + _type + ' | url: ' + url + ' | val: ' + val);
+
+	var f = nlapiLoadRecord('customrecord_files', filesId);
+	f.setFieldValue('custrecord_files_folder', folderName);
+	f.setFieldValue('custrecord_files_file_size_kb', size);
+	f.setFieldValue('custrecord_files_document_type', _type);
+	f.setFieldValue('custrecord_files_file_url', url);
+	var fId = nlapiSubmitRecord(f, true);
+	log.write('Folder Update: ' + fId);
 }

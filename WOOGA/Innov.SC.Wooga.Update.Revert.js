@@ -1,6 +1,6 @@
 /**
  * @fileOverview
- * @name Innov.UE.Wooga.Absence.Calc.js
+ * @name Innov.SC.Wooga.Update.Revert.js
  * @author Eli eli@innov.co.uk
  * xx-xx-xx
  * @version 1.0
@@ -16,7 +16,13 @@ var log = new Log('DEBUG');
 var schedUpdate = function(){
 
 	var objContext = nlapiGetContext();
-	var empS = nlapiSearchRecord('employee', 'customsearch_innov_employees', null, null);
+	
+	var filters =
+	[
+		new nlobjSearchFilter('isinactive', null, 'is', 'F')
+	];	
+	
+	var empS = nlapiSearchRecord('employee', null, null, null);
 
 	if(empS == null)
 	return;
@@ -34,16 +40,7 @@ var schedUpdate = function(){
 			break;
 		}
 
-		var obj = nlapiLoadRecord('employee', _id);
-		updateCostCenter(obj, _id);
-		updateSupervisor(obj, _id);
-		updateJobTitleDetails(obj, _id);
-		updateContractDetails(obj, _id);
-		updateBankDetails(obj, _id);
-		updateFiles(obj, _id);
-		esop(obj, _id);
-		obj.setFieldValue('custentity_innov_flag', 'T');
-		var updateEmp = nlapiSubmitRecord(obj);
-		log.write('Updated: ' + updateEmp + ' | Remaining: ' + intUsageRemaining);
+		nlapiSubmitField('employee', _id, 'custentity_innov_flag', 'F');
+		log.write('Updated: ' + _id + ' | Remaining: ' + intUsageRemaining);
 	}
 }
