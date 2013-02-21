@@ -1,17 +1,24 @@
 /**
-* @fileOverview
-* @name
-* @author Eli
-* 02-12-2013
-* @version 1.0
-* DolbyMedical :
-*/
+ * Module Description
+ * 
+ * Version    Date            Author           Remarks
+ * 1.00       21 Feb 2013     EliseoB
+ *
+ */
 
 var DolbyMedical;
 if (!DolbyMedical) DolbyMedical = {};
 
+/**
+ * The recordType (internal id) corresponds to the "Applied To" record in your script deployment. 
+ * @appliedtorecord recordType
+ *   
+ * @param {String} type Operation types: create, edit, view, copy, print, email
+ * @param {nlobjForm} form Current form
+ * @param {nlobjRequest} request Request object
+ * @returns {Void}
+ */
 DolbyMedical.beforeLoad = function(type, form, request){
-
 	if(type == 'view' || type == 'edit'){
 		var status = nlapiGetFieldValue('entitystatus');
 		var oppLink = nlapiGetFieldValue('custentity_contract_opp_link');
@@ -23,7 +30,60 @@ DolbyMedical.beforeLoad = function(type, form, request){
 				form.addButton('custpage_create_opp', 'Create Opportunity', 'createOpp'); //add create opportunity button
 			}
 		}
+	} 
+}
+
+/**
+ * The recordType (internal id) corresponds to the "Applied To" record in your script deployment. 
+ * @appliedtorecord recordType
+ * 
+ * @param {String} type Operation types: create, edit, delete, xedit
+ *                      approve, reject, cancel (SO, ER, Time Bill, PO & RMA only)
+ *                      pack, ship (IF)
+ *                      markcomplete (Call, Task)
+ *                      reassign (Case)
+ *                      editforecast (Opp, Estimate)
+ * @returns {Void}
+ */
+DolbyMedical.afterSubmit = function(type){
+ 
+}
+
+/**
+ * The recordType (internal id) corresponds to the "Applied To" record in your script deployment. 
+ * @appliedtorecord recordType
+ * 
+ * @param {String} type Operation types: create, edit, delete, xedit,
+ *                      approve, cancel, reject (SO, ER, Time Bill, PO & RMA only)
+ *                      pack, ship (IF only)
+ *                      dropship, specialorder, orderitems (PO only) 
+ *                      paybills (vendor payments)
+ * @returns {Void}
+ */
+DolbyMedical.beforeSubmit = function(type){
+  
+}
+
+/**
+* @custom function
+*/
+
+var getBasePrice = function(itemId){
+	
+	var basePrice = "";
+	var itemType = nlapiLookupField('item', itemId, 'type');
+	if(!isBlank(itemType))
+	{
+		//Get Base Price
+		var itemRecType = getItemRecType(itemType);
+		var o = nlapiLoadRecord(itemRecType, itemId);
+		if(!isBlank(o))
+		{
+			basePrice = o.getLineItemValue('price1', 'price_1_', '1');
+		}
 	}
+	
+	return basePrice;
 }
 
 var createOpp = function(){
@@ -129,13 +189,11 @@ var createOpp = function(){
 	}
 }
 
-var afterSubmit = function(){
-	var formActive = new opportunityForm(); //formActive.DM_OPPORTUNITY_V2
-}
 
 var buildItemLines = function(contractId){
 
 	var result = [];
+	var cerid = "";
 
 	if(!isBlank(contractId))
 	{
@@ -158,7 +216,7 @@ var buildItemLines = function(contractId){
 		{
 			for(var i = 0; i < s.length; i++)
 			{
-				var cerid = s[i].getId();
+				cerid = s[i].getId();
 				var itemid = s[i].getValue('custrecord_citem_contractitem'); //02.15 - Changed 'custrecord_citem_item' to 'custrecord_citem_contractitem'
 				result.push(itemid);
 			}
@@ -178,33 +236,9 @@ var buildItemLines = function(contractId){
 
 }
 
-/**
-* @custom function
-*/
-var opportunityForm = function(){
-	this.DM_OPPORTUNITY_V2 = '141';
-}
-
-var getBasePrice = function(itemId){
-
-	var itemType = nlapiLookupField('item', itemId, 'type');
-	if(!isBlank(itemType))
-	{
-		//Get Base Price
-		var itemRecType = getItemRecType(itemType);
-		var o = nlapiLoadRecord(itemRecType, itemId);
-		if(!isBlank(o))
-		{
-			var basePrice = o.getLineItemValue('price1', 'price_1_', '1');
-		}
-	}
-	
-	return basePrice;
-}
-
 function isBlank(test){ if ( (test == '') || (test == null) ||(test == undefined) || (test.toString().charCodeAt() == 32)  ){return true}else{return false}}
-
 
 function timedRefresh(timeoutPeriod) {
 	setTimeout("location.reload(true);",timeoutPeriod);
 }
+
