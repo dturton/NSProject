@@ -161,11 +161,6 @@ var createOpp = function(){
 						create.setLineItemValue('item', 'rate', temp, '0.00');
 						
 						nlapiLogExecution('DEBUG', 'Item ID: ' + itemId + ' | Item Qty: ' + itemQty);
-						
-						//if(!isBlank(basePrice))
-						//{
-						//	create.setLineItemValue('item', 'rate', basePrice, '1'); //Set Rate from Item Record Base Price
-						//}
 					}
 				}
 			}
@@ -177,7 +172,7 @@ var createOpp = function(){
 				{
 					nlapiSubmitField(recordType, recordId, 'custentity_contract_opp_link', opportunityId); //Link Contract
 					nlapiLogExecution('DEBUG', 'Opportunity: ', opportunityId);
-					timedRefresh(500);
+					timedRefresh(500); //Refresh page
 				}
 			}
 			catch(ex)
