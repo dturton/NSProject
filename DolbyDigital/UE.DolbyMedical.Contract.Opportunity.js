@@ -1,89 +1,26 @@
 /**
- * Module Description
- * 
- * Version    Date            Author           Remarks
- * 1.00       21 Feb 2013     EliseoB
- *
- */
+* @fileOverview
+* @name
+* @author Eli
+* 02-12-2013
+* @version 1.0
+* DolbyMedical :
+*/
 
 var DolbyMedical;
 if (!DolbyMedical) DolbyMedical = {};
 
-/**
- * The recordType (internal id) corresponds to the "Applied To" record in your script deployment. 
- * @appliedtorecord recordType
- *   
- * @param {String} type Operation types: create, edit, view, copy, print, email
- * @param {nlobjForm} form Current form
- * @param {nlobjRequest} request Request object
- * @returns {Void}
- */
 DolbyMedical.beforeLoad = function(type, form, request){
+
 	if(type == 'view' || type == 'edit'){
 		var status = nlapiGetFieldValue('entitystatus');
 		var oppLink = nlapiGetFieldValue('custentity_contract_opp_link');
-		if(status != '1') //Not yet Closed show button
+		if(status != '1' && oppLink == null) //Not yet Closed show button
 		{
-			if(oppLink != "")
-			{
-				form.setScript('customscript_dolby_medical_client');
-				form.addButton('custpage_create_opp', 'Create Opportunity', 'createOpp'); //add create opportunity button
-			}
-		}
-	} 
-}
-
-/**
- * The recordType (internal id) corresponds to the "Applied To" record in your script deployment. 
- * @appliedtorecord recordType
- * 
- * @param {String} type Operation types: create, edit, delete, xedit
- *                      approve, reject, cancel (SO, ER, Time Bill, PO & RMA only)
- *                      pack, ship (IF)
- *                      markcomplete (Call, Task)
- *                      reassign (Case)
- *                      editforecast (Opp, Estimate)
- * @returns {Void}
- */
-DolbyMedical.afterSubmit = function(type){
- 
-}
-
-/**
- * The recordType (internal id) corresponds to the "Applied To" record in your script deployment. 
- * @appliedtorecord recordType
- * 
- * @param {String} type Operation types: create, edit, delete, xedit,
- *                      approve, cancel, reject (SO, ER, Time Bill, PO & RMA only)
- *                      pack, ship (IF only)
- *                      dropship, specialorder, orderitems (PO only) 
- *                      paybills (vendor payments)
- * @returns {Void}
- */
-DolbyMedical.beforeSubmit = function(type){
-  
-}
-
-/**
-* @custom function
-*/
-
-var getBasePrice = function(itemId){
-	
-	var basePrice = "";
-	var itemType = nlapiLookupField('item', itemId, 'type');
-	if(!isBlank(itemType))
-	{
-		//Get Base Price
-		var itemRecType = getItemRecType(itemType);
-		var o = nlapiLoadRecord(itemRecType, itemId);
-		if(!isBlank(o))
-		{
-			basePrice = o.getLineItemValue('price1', 'price_1_', '1');
+			form.setScript('customscript_dolby_medical_client');
+			form.addButton('custpage_create_opp', 'Create Opportunity', 'createOpp'); //add create opportunity button
 		}
 	}
-	
-	return basePrice;
 }
 
 var createOpp = function(){
@@ -104,7 +41,9 @@ var createOpp = function(){
 				actualEnddate : contractRecord.getFieldValue('enddate'), //Actual End Date
 				directDebit : contractRecord.getFieldValue('custentity_directdebit'), //Direct Debit
 				department : contractRecord.getFieldValue('custentity_department'), //Department - must not be empty!
-				endDate : contractRecord.getFieldValue('custentity_end_date') //End Date
+				endDate : contractRecord.getFieldValue('custentity_end_date'), //End Date
+				startdate : contractRecord.getFieldValue('startdate'), //Start Date
+				custom_startdate : contractRecord.getFieldValue('custentity_start_date')
 			}
 		);
 
@@ -123,11 +62,11 @@ var createOpp = function(){
 			create.setFieldValue('title', _title);
 			create.setFieldValue('department', main[0].department); //Department
 			create.setFieldValue('class', '4'); //3. Contract Renewals
-			//create.setFieldValue('salesrep', ' 6842'); //House Account
 			create.setFieldValue('custbody_directdebit', main[0].directDebit);
 			create.setFieldValue('custbody_opp_contract_link', recordId); //Link Opportunity
 			create.setFieldValue('expectedclosedate', main[0].endDate); //Expected Close Date
 			create.setFieldValue('probability', '50.0%');
+			create.setFieldValue('createddate', main[0].startdate); //Start Date
 
 			if(!isBlank(main[0].actualEnddate))
 			{
@@ -138,6 +77,15 @@ var createOpp = function(){
 				create.setFieldValue('custbodyopp_renewal_start_date', nlapiDateToString(renewalStartDate));
 				create.setFieldValue('custbody_opp_renewal_end_date', nlapiDateToString(renewalEndDate));
 			}
+			
+			if(!isBlank(main[0].startdate))
+			{
+				//Contract.Actual End Date +1 Day
+				var contractEndDate = nlapiAddDays(nlapiAddMonths(nlapiStringToDate(main[0].startdate), 12), -1); //Add 12 Months
+				nlapiLogExecution('DEBUG', 'Contract End Date: ' + contractEndDate);
+				nlapiSubmitField(nlapiGetRecordType(), nlapiGetRecordId(), 'custentity_end_date', nlapiDateToString(contractEndDate));				
+				nlapiSubmitField(nlapiGetRecordType(), nlapiGetRecordId(), 'enddate', nlapiDateToString(contractEndDate));
+			}			
 
 			//Build Item lines
 			if(!isBlank(itemLines))
@@ -159,20 +107,24 @@ var createOpp = function(){
 						create.setLineItemValue('item', 'quantity', temp, itemQty);
 						create.setLineItemValue('item', 'price', temp, '1'); //Set to Base Price
 						create.setLineItemValue('item', 'rate', temp, '0.00');
-						
+
 						nlapiLogExecution('DEBUG', 'Item ID: ' + itemId + ' | Item Qty: ' + itemQty);
+
 					}
 				}
 			}
 
 			try
 			{
+				var contractRecord = nlapiSubmitRecord(contractRecord, true);
 				var opportunityId = nlapiSubmitRecord(create, {recordmode: 'dynamic'});
 				if(!isBlank(opportunityId))
 				{
+					//Modify End Date of the Contract Record
 					nlapiSubmitField(recordType, recordId, 'custentity_contract_opp_link', opportunityId); //Link Contract
+					nlapiSubmitField('opportunity', opportunityId, 'salesrep', '6842');
 					nlapiLogExecution('DEBUG', 'Opportunity: ', opportunityId);
-					timedRefresh(500); //Refresh page
+					timedRefresh(500);
 				}
 			}
 			catch(ex)
@@ -184,11 +136,13 @@ var createOpp = function(){
 	}
 }
 
+var afterSubmit = function(){
+	var formActive = new opportunityForm(); //formActive.DM_OPPORTUNITY_V2
+}
 
 var buildItemLines = function(contractId){
 
 	var result = [];
-	var cerid = "";
 
 	if(!isBlank(contractId))
 	{
@@ -211,7 +165,7 @@ var buildItemLines = function(contractId){
 		{
 			for(var i = 0; i < s.length; i++)
 			{
-				cerid = s[i].getId();
+				var cerid = s[i].getId();
 				var itemid = s[i].getValue('custrecord_citem_contractitem'); //02.15 - Changed 'custrecord_citem_item' to 'custrecord_citem_contractitem'
 				result.push(itemid);
 			}
@@ -231,9 +185,33 @@ var buildItemLines = function(contractId){
 
 }
 
+/**
+* @custom function
+*/
+var opportunityForm = function(){
+	this.DM_OPPORTUNITY_V2 = '141';
+}
+
+var getBasePrice = function(itemId){
+
+	var itemType = nlapiLookupField('item', itemId, 'type');
+	if(!isBlank(itemType))
+	{
+		//Get Base Price
+		var itemRecType = getItemRecType(itemType);
+		var o = nlapiLoadRecord(itemRecType, itemId);
+		if(!isBlank(o))
+		{
+			var basePrice = o.getLineItemValue('price1', 'price_1_', '1');
+		}
+	}
+
+	return basePrice;
+}
+
 function isBlank(test){ if ( (test == '') || (test == null) ||(test == undefined) || (test.toString().charCodeAt() == 32)  ){return true}else{return false}}
+
 
 function timedRefresh(timeoutPeriod) {
 	setTimeout("location.reload(true);",timeoutPeriod);
 }
-
