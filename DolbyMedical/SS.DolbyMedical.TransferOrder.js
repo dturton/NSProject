@@ -15,7 +15,7 @@ var generate = function(req, res){
 	{
 		var str = "<html>";
 		str += "<head>";
-		str += "<title>Create Transfer Order</title>";
+		str += "<title>Dolby Medical - Location Auto Replenishment</title>";
 
 		str += "<style type=\"text/css\">";
 		str += "table.altrowstable {";
@@ -76,13 +76,41 @@ var generate = function(req, res){
 		{
 			for(var i = 0; i < s.length; i++)
 			{
-				var itemId = s[i].getId();
+				var itemId = s[i].getId(); //Item ID
+				var loc = s[i].getValue('name', 'inventoryLocation'); //Employee Name
+				var itemname = s[i].getValue('itemid'); //Item Name
+				var prefstocklevel = s[i].getValue('locationpreferredstocklevel'); //Preferred Stock Level
+				var locationquantityavailable = s[i].getValue('locationquantityavailable'); //Location Available
+				var locationquantityonorder = s[i].getValue('locationquantityonorder'); //Location On Order
+				var locationquantitycommitted = s[i].getValue('locationquantitycommitted'); //Location Committed
+				var locationquantitybackordered = s[i].getValue('locationquantitybackordered'); //Location Back Order
+				var replenish = s[i].getValue('formulanumeric'); // For Replenish
 				var locId = s[i].getValue('internalid', 'inventoryLocation');
-				var loc = s[i].getValue('name', 'inventoryLocation');
-				var itemname = s[i].getValue('itemid');
-				var onhand = s[i].getValue('formulanumeric');
-				var prefstocklevel = s[i].getValue('locationpreferredstocklevel');
 
+				if(locationquantityavailable == "")
+				{
+					locationquantityavailable = parseInt(0);
+				}
+
+				if(locationquantityonorder == "")
+				{
+					locationquantityonorder = parseInt(0);
+				}
+
+				if(locationquantitycommitted == "")
+				{
+					locationquantitycommitted = parseInt(0);
+				}
+
+				if(locationquantitybackordered == "")
+				{
+					locationquantitybackordered = parseInt(0);
+				}
+
+				if(replenish == "")
+				{
+					replenish = parseInt(0);
+				}
 				arr.push
 				(
 					{
@@ -90,8 +118,12 @@ var generate = function(req, res){
 						'itemId' : itemId,
 						'loc' : loc,
 						'itemname' : itemname,
-						'onhand' : onhand,
-						'prefstocklevel' : prefstocklevel
+						'prefstocklevel' : prefstocklevel,
+						'qtyavailable' : locationquantityavailable,
+						'qtyonorder' : locationquantityonorder,
+						'qtycommitted' : locationquantitycommitted,
+						'qtybackordered' : locationquantitybackordered,
+						'replenish' : replenish
 					}
 				)
 			}
@@ -100,36 +132,44 @@ var generate = function(req, res){
 		if(arr != null)
 		{
 			str += "<img src='https://system.netsuite.com/core/media/media.nl?id=683&c=3562042&h=2c5fceaf606f7e802720' alt='' />";
-			str += "<table class=\"altrowstable\" id=\"alternatecolor\">";
-			str += "<tr>";
-			str += "	<td>Name</td><td>Item</td><td>Qty on Hand</td><td>Preferred<br /> Stock Level</td><td>For Transfer</td><td>Action</td>";
-			str += "</tr>";
-
-			var counts = {};
-
-			for(var x in arr)
+			if(s != null)
 			{
-				var forTransfer = parseInt(arr[x].prefstocklevel) - parseInt(arr[x].onhand);
-
+				str += "<div align='left'>Total Items: " + s.length + "</div>";
+			
+				str += "<table class=\"altrowstable\" id=\"alternatecolor\">";
 				str += "<tr>";
-				str += "	<td>" + arr[x].loc + "</td><td>" +  arr[x].itemname + "</td><td align='center'>" + arr[x].onhand + "</td><td align='center'>" + arr[x].prefstocklevel + "</td><td align='center'>" + forTransfer + "</td>";
-
-
-    		var num = arr[x].loc;
-    		counts[num] = counts[num] ? counts[num]+1 : 1;
-
-    		if(counts[num] == 1)
-    		{
-					str += "<td><a href='https://system.netsuite.com/app/site/hosting/scriptlet.nl?script=120&deploy=1&transferLoc=" + arr[x].locId + "'>create</a></td>";
-				}
-				else
-				{
-					str += "<td></td>";
-				}
-
+				str += "	<td>Name</td><td>Item</td><td>Preferred<br /> Stock Level</td><td>Qty Available</td><td>Qty On Order</td><td>Qty Committed</td><td>Qty Back Ordered<td>For Replenish</td><td>Action</td>";
 				str += "</tr>";
+	
+				var counts = {};
+	
+				for(var x in arr)
+				{
+					str += "<tr>";
+					str += "	<td>" + arr[x].loc + "</td><td>" +  arr[x].itemname + "</td><td align='center'>" + arr[x].prefstocklevel + "</td><td align='center'>" + arr[x].qtyavailable + "</td><td align='center'>" + arr[x].qtyonorder + "</td><td align='center'>" + arr[x].qtycommitted + "</td><td align='center'>" + arr[x].qtybackordered + "</td><td align='center'>" + arr[x].replenish + "</td>";
+	
+	
+	    		var num = arr[x].loc;
+	    		counts[num] = counts[num] ? counts[num]+1 : 1;
+	
+	    		if(counts[num] == 1)
+	    		{
+						str += "<td><a href='https://system.netsuite.com/app/site/hosting/scriptlet.nl?script=120&deploy=1&transferLoc=" + arr[x].locId + "'>create</a></td>";
+					}
+					else
+					{
+						str += "<td></td>";
+					}
+	
+					str += "</tr>";
+				}
+				str += "</table>";
 			}
-			str += "</table>";
+			else
+			{
+				str += "<br /><br /><div align='left' style='font-size:14px;'><strong>No Items Requiring Auto Replenishment</strong></div>";
+				str += "<br /><a href='https://system.netsuite.com/app/center/card.nl?sc=-29&t=etme1mJZO&whence='>Click here to go back to Netsuite</a>";
+			}
 
 		}
 
@@ -158,8 +198,7 @@ var createSingleTransferOrder = function(req, res){
 				var locId = s[i].getValue('internalid', 'inventoryLocation');
 				var loc = s[i].getValue('name', 'inventoryLocation');
 				var itemname = s[i].getValue('itemid');
-				var onhand = s[i].getValue('formulanumeric');
-				var prefstocklevel = s[i].getValue('locationpreferredstocklevel');
+				var replenish = s[i].getValue('formulanumeric');
 
 				if(locId == transferLoc)
 				{
@@ -170,8 +209,7 @@ var createSingleTransferOrder = function(req, res){
 							'itemId' : itemId,
 							'loc' : loc,
 							'itemname' : itemname,
-							'onhand' : onhand,
-							'prefstocklevel' : prefstocklevel
+							'replenish' : replenish
 						}
 					)
 				}
@@ -184,7 +222,7 @@ var createSingleTransferOrder = function(req, res){
 		var trandate = nlapiDateToString(date);
 		var stat = new OrderStatus();
 
-		var create = nlapiCreateRecord('transferorder');
+		var create = nlapiCreateRecord('transferorder', {recordmode: 'dynamic'});
 		create.setFieldValue('customform', cf.DM_TRANSFER_ORDER); //*
 		create.setFieldValue('trandate', trandate); //*
 		create.setFieldValue('location', 1);
@@ -197,68 +235,36 @@ var createSingleTransferOrder = function(req, res){
 			create.setFieldValue('employee', employee);
 		}
 
+		//Get Employee Name
+		if(!isBlank(employee))
+		{
+			create.setFieldValue('employee', employee);
+			var employeeName = nlapiLookupField('employee', employee, 'entityid');
+			if(!isBlank(employeeName))
+			{
+				var memoStr = 'Stock Replenishment: ' + employeeName;
+				create.setFieldValue('memo', memoStr);
+			}
+		}
+
 		for(var i in arr)
 		{
 			var line = parseInt(i) + 1;
-			var itemId = s[i].getId();
-			var locId = s[i].getValue('internalid', 'inventoryLocation');
-			var loc = s[i].getValue('name', 'inventoryLocation');
-			var itemname = s[i].getValue('itemid');
-			var onhand = s[i].getValue('formulanumeric');
-			var prefstocklevel = s[i].getValue('locationpreferredstocklevel');
+			var itemId = arr[i].itemId;
+			var replenish = arr[i].replenish;
 			
-			var forTransfer = parseInt(arr[i].prefstocklevel) - parseInt(arr[i].onhand);
-			
+			nlapiLogExecution('DEBUG', 'Replenished: ' + replenish);
+
 			create.insertLineItem('item', line);
 			create.setLineItemValue('item', 'item', line, itemId);
-			create.setLineItemValue('item', 'quantity', line, forTransfer);
+			create.setLineItemValue('item', 'quantity', line, replenish);
+
 		}
 		//Submit
 		var id = nlapiSubmitRecord(create, true);
 		nlapiSetRedirectURL('RECORD', 'transferorder', id, null, null);
 		nlapiLogExecution('DEBUG', 'Created Transfer Order:' + id);
 	}
-}
-
-//Compile Item Record
-var getItemRecord = function(arr){
-
-	var itemData = [];
-	for(var a in arr)
-	{
-		var obj = nlapiLoadRecord('inventoryitem', arr[a]);
-		var itemid = obj.getFieldValue('itemid');
-		var count = obj.getLineItemCount('locations');
-		for(var i = 1; i <= count; i++)
-		{
-			var qtyOnHand = obj.getLineItemValue('locations', 'quantityonhand', i);
-			var prefStockLevel = obj.getLineItemValue('locations', 'preferredstocklevel', i);
-			var loc = obj.getLineItemValue('locations', 'location', i);
-
-			if(qtyOnHand == null)
-			{
-				qtyOnHand = parseInt(0);
-			}
-
-			if(prefStockLevel != null && loc != null)
-			{
-				if(prefStockLevel > qtyOnHand)
-				{
-					itemData.push
-					(
-						{
-							'itemid' : itemid,
-							'item' : arr[a],
-							'loc':loc,
-							'qtyOnHand' : qtyOnHand,
-							'prefStockLevel' : prefStockLevel
-						}
-					);
-				}
-			}
-		}
-	}
-	return itemData;
 }
 
 var DolbyMedical;
@@ -277,51 +283,11 @@ var CustomForm = function(){
 	this.DM_TRANSFER_ORDER = '127';
 }
 
-
-
 /**
 * @param arr Array of Transfer Order Fields
 * @param i Int sequence in Array
 * @param items Item array
 */
-var createTransferOrder = function(arr, i, items){
-
-	var create = nlapiCreateRecord('transferorder');
-	create.setFieldValue('customform', customForm); //*
-	create.setFieldValue('trandate', arr[i].trandate); //*
-	create.setFieldValue('location', arr[i].location);
-	create.setFieldValue('transferlocation', arr[i].transferlocation); //*
-	create.setFieldValue('orderstatus', arr[i].orderstatus);
-	create.setFieldValue('employee', arr[i].employee);
-	create.setFieldValue('department', arr[i].department);
-	create.setFieldValue('class', arr[i].saleschannel);
-
-	//Create Item Line
-	if(!isBlank(items))
-	{
-		var z = 0;
-
-		for(var a = 0; a < item.length; a++)
-		{
-			var itemId = [a].toString();
-			var itemQty = items[a];
-
-			if(!isBlank(itemId) && !isBlank(itemQty))
-			{
-				//var basePrice = getBasePrice(itemId);
-
-				var temp = parseInt(z) + 1;
-				create.insertLineItem('item', temp);
-				create.setLineItemValue('item', 'item', temp, itemId);
-				create.setLineItemValue('item', 'quantity', temp, itemQty);
-			}
-		}
-	}
-
-	//Submit
-	var id = nlapiSubmitRecord(create, true);
-
-}
 
 /**
 * Get Flagged Location
@@ -362,7 +328,6 @@ var OrderStatus = function(){
 }
 
 function isBlank(test){ if ( (test == '') || (test == null) ||(test == undefined) || (test.toString().charCodeAt() == 32)  ){return true}else{return false}}
-
 
 function sort_unique(arr) {
     arr = arr.sort(function (a, b) { return a*1 - b*1; });
