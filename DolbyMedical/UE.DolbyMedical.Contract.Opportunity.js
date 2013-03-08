@@ -54,10 +54,11 @@ var createOpp = function(){
 			//Create Opportunity record
 
 			var _title = main[0].title + ' Contract Renewal';
+			var cf = new OpportunityForm();
 
 			//Build Mainline
 			var create = nlapiCreateRecord('opportunity');
-			create.setFieldValue('customform', '141');
+			create.setFieldValue('customform', cf.DM_OPPORTUNITY_V2);
 			create.setFieldValue('entity', main[0].parent);
 			create.setFieldValue('title', _title);
 			create.setFieldValue('department', main[0].department); //Department
@@ -74,6 +75,7 @@ var createOpp = function(){
 				var renewalStartDate = nlapiAddDays(nlapiStringToDate(main[0].actualEnddate), +1);
 				var renewalEndDate = nlapiAddMonths(renewalStartDate, 12); //Add 12 Months
 				nlapiLogExecution('DEBUG', 'Renewal Start Date: ' + renewalStartDate + ' | Renewal End Date: ' + renewalEndDate);
+				create.setFieldValue('trandate', nlapiDateToString(renewalStartDate));
 				create.setFieldValue('custbodyopp_renewal_start_date', nlapiDateToString(renewalStartDate));
 				create.setFieldValue('custbody_opp_renewal_end_date', nlapiDateToString(renewalEndDate));
 			}
@@ -122,8 +124,9 @@ var createOpp = function(){
 				{
 					//Modify End Date of the Contract Record
 					nlapiSubmitField(recordType, recordId, 'custentity_contract_opp_link', opportunityId); //Link Contract
-					nlapiSubmitField('opportunity', opportunityId, 'salesrep', '6842');
+					nlapiSubmitField('opportunity', opportunityId, 'salesrep', '6842'); //House Account
 					nlapiLogExecution('DEBUG', 'Opportunity: ', opportunityId);
+					updateCER(recordId, opportunityId);
 					timedRefresh(500);
 				}
 			}
@@ -134,10 +137,6 @@ var createOpp = function(){
 			}
 		}
 	}
-}
-
-var afterSubmit = function(){
-	var formActive = new opportunityForm(); //formActive.DM_OPPORTUNITY_V2
 }
 
 var buildItemLines = function(contractId){
@@ -185,10 +184,36 @@ var buildItemLines = function(contractId){
 
 }
 
+var updateCER = function(contractId, opportunityId){
+
+	if(!isBlank(opportunityId))
+	{
+		var contractArray = [];
+		contractArray[0] = contractId;
+
+		var filters =
+		[
+			new nlobjSearchFilter('custrecord_citem_contract', null, 'anyof', contractArray)
+		];
+
+		var s = nlapiSearchRecord('customrecord_contractitem',null, filters, null);
+
+		if(s != null)
+		{
+			for(var i = 0; i < s.length; i++)
+			{
+				var cerid = s[i].getId();
+				nlapiSubmitField('customrecord_contractitem', cerid, 'custrecord_opportunity_link', opportunityId);
+			}
+		}
+	}
+	
+}
+
 /**
 * @custom function
 */
-var opportunityForm = function(){
+var OpportunityForm = function(){
 	this.DM_OPPORTUNITY_V2 = '141';
 }
 
