@@ -6,6 +6,10 @@
 * @version 1.0
 * DolbyMedical :
 * Saved Search : Dolby Medical : Generate Transfer Order
+* 03-08-2013 
+* Added description on items
+* Unticked Ship to Complete
+* Amount and Rate set to zero
 */
 
 var generate = function(req, res){
@@ -228,6 +232,7 @@ var createSingleTransferOrder = function(req, res){
 		create.setFieldValue('location', 1);
 		create.setFieldValue('transferlocation', transferLoc); //*
 		create.setFieldValue('orderstatus', stat.PENDING_FULFILLMENT);
+		create.setFieldValue('shipcomplete', 'F');
 
 		var employee = nlapiLookupField('location', transferLoc, 'custrecord_loc_employee');
 		if(!isBlank(employee))
@@ -253,11 +258,19 @@ var createSingleTransferOrder = function(req, res){
 			var itemId = arr[i].itemId;
 			var replenish = arr[i].replenish;
 			
+			var desc = nlapiLookupField('item', itemId, 'description');
+			
 			nlapiLogExecution('DEBUG', 'Replenished: ' + replenish);
 
 			create.insertLineItem('item', line);
 			create.setLineItemValue('item', 'item', line, itemId);
+			if(!isBlank(desc))
+			{
+				create.setLineItemValue('item', 'description', line, desc);
+			}
 			create.setLineItemValue('item', 'quantity', line, replenish);
+			create.setLineItemValue('item', 'amount', i, '0.00');
+			create.setLineItemValue('item', 'rate', i, '0.00');			
 
 		}
 		//Submit
