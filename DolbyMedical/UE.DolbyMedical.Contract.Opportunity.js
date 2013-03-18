@@ -4,7 +4,8 @@
 * @author Eli
 * 02-12-2013
 * @version 1.0
-* DolbyMedical :
+* 03-09-2013
+* Date changes logic
 */
 
 var DolbyMedical;
@@ -69,25 +70,21 @@ var createOpp = function(){
 			create.setFieldValue('probability', '50.0%');
 			create.setFieldValue('createddate', main[0].startdate); //Start Date
 
-			if(!isBlank(main[0].actualEnddate))
-			{
-				//Contract.Actual End Date +1 Day
-				var renewalStartDate = nlapiAddDays(nlapiStringToDate(main[0].actualEnddate), +1);
-				var renewalEndDate = nlapiAddMonths(renewalStartDate, 12); //Add 12 Months
-				nlapiLogExecution('DEBUG', 'Renewal Start Date: ' + renewalStartDate + ' | Renewal End Date: ' + renewalEndDate);
-				create.setFieldValue('trandate', nlapiDateToString(renewalStartDate));
-				create.setFieldValue('custbodyopp_renewal_start_date', nlapiDateToString(renewalStartDate));
-				create.setFieldValue('custbody_opp_renewal_end_date', nlapiDateToString(renewalEndDate));
-			}
-			
 			if(!isBlank(main[0].startdate))
 			{
 				//Contract.Actual End Date +1 Day
-				var contractEndDate = nlapiAddDays(nlapiAddMonths(nlapiStringToDate(main[0].startdate), 12), -1); //Add 12 Months
-				nlapiLogExecution('DEBUG', 'Contract End Date: ' + contractEndDate);
-				nlapiSubmitField(nlapiGetRecordType(), nlapiGetRecordId(), 'custentity_end_date', nlapiDateToString(contractEndDate));				
-				nlapiSubmitField(nlapiGetRecordType(), nlapiGetRecordId(), 'enddate', nlapiDateToString(contractEndDate));
-			}			
+				var contractStartDate = nlapiAddDays(nlapiAddMonths(nlapiStringToDate(main[0].startdate), 12), -1); //Add 12 Months less one day
+				create.setFieldValue('custbodyopp_renewal_start_date', nlapiDateToString(contractStartDate)); //Modify Renewal Start Date
+				nlapiLogExecution('DEBUG', 'Renewal Start Date: ' + contractStartDate);
+			}
+
+			if(!isBlank(main[0].actualEnddate))
+			{
+				create.setFieldValue('trandate', main[0].actualEnddate);  //Modify Created Date
+				var contractEndDate = nlapiAddDays(nlapiAddMonths(nlapiStringToDate(main[0].actualEnddate), 12), -1); //Add 12 Months less one day
+				create.setFieldValue('custbody_opp_renewal_end_date', nlapiDateToString(contractEndDate));  //Modify Renewal End Date
+				nlapiLogExecution('DEBUG', 'Renewal End Date: ' + contractEndDate);
+			}
 
 			//Build Item lines
 			if(!isBlank(itemLines))
@@ -207,7 +204,7 @@ var updateCER = function(contractId, opportunityId){
 			}
 		}
 	}
-	
+
 }
 
 /**
